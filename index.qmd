@@ -32,3 +32,26 @@ Thom Benjamin Volker
 :::::
 
 __Research interests__: methods to enhance _data privacy_, _synthetic data_ and multiple imputation of _missing data_.
+
+## Today
+
+1. Why missing data is a problem (briefly)
+
+2. When can, and should, we solve missing data problems
+
+3. Multiple imputation
+
+4. Correct inferences with missing data
+
+__Materials:__
+
+- Course website: [](https://thomvolker.github.io/mice4ukraine)
+- GitHub with files: [](https://github.com/thomvolker/mice4ukraine)
+
+## Take-aways
+
+1. Ignoring missing data is no viable strategy
+
+2. Missing data means missing information, this adds uncertainty to your inferences
+
+3. There is (typically) no quick fix, but we can come quite far
