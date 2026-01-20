@@ -1,0 +1,34 @@
+---
+title: "A practical introduction to multiple imputation with `mice`"
+subtitle: "Department of Methodology and Statistics, Utrecht University"
+author:
+  - name: "Thom B. Volker"
+format:
+  revealjs:
+    theme: theme.scss
+    logo: "https://github.com/thomvolker/slides-theme/blob/main/universiteit-utrecht-logo.png?raw=true"
+    incremental: false
+#bibliography: pred_int.bib
+---
+
+## About me
+
+::::: {.columns}
+:::::: {.column width="60%"}
+Thom Benjamin Volker
+
+- Utrecht University \& Statistics Netherlands
+- PhD. Candidate in Methodology and Statistics
+::::::
+
+:::::: {.column width="5%"}
+<br>
+::::::
+
+:::::: {.column width="25%"}
+![](me_bike.jpg){style="border-radius:30px; overflow:hidden; border:2px solid #12244d"}
+::::::
+
+:::::
+
+__Research interests__: methods to enhance _data privacy_, _synthetic data_ and multiple imputation of _missing data_.

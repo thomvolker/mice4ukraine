@@ -1,0 +1,63 @@
+/*-- scss:defaults --*/
+@import url('https://fonts.googleapis.com/css2?family=Bilbo+Swash+Caps&family=Birthstone&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Fira+Code:wght@300..700&family=Lugrasimo&display=swap');
+// Import Google font-size:
+$cream: #fffbf2;
+$light-blue: #c0d6df;
+$dark-blue: #12244d;
+$main-blue: #27548a;
+$sand: #dda853;
+$dark-orange: #d95f0e;
+$lilac: #EFEDF5;
+$neon-green: #00ff00;
+$purple: #800080;
+
+
+// Main Colors
+$body-bg: $cream;
+$body-color: $dark-blue;
+$link-color: $main-blue;
+$navbar-bg: $cream;
+$navbar-fg: $dark-blue;
+$navbar-hl: $main-blue;
+
+// Inline code
+$code-bg: $cream;
+$code-color: $dark-blue;
+$code-block-bg: $dark-blue;
+$code-block-color: $dark-orange;
+
+// fonts
+$font-family-sans-serif: "Cormorant Garamond";
+$font-family-monospace: "Fira Code";
+$presentation-font-size-root: 275%;
+
+.emph {
+  margin: 1em 0;
+  border: 2px solid $dark-orange;
+  padding-left: 40px;
+  border-left: 10px solid $dark-orange;
+  border-radius: 10px;
+  background-color: sand;
+}
+
+.emph-header {
+  margin-left: 0em;
+  padding-top: 5px;
+  padding-bottom: 0.1em;
+  color:$dark-blue;
+  border-radius: 10px;
+  border-bottom: 2px solid $dark-orange;
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+  padding-left: 0px;
+  font-size: 1em;
+  font-weight: bold;
+  background-position: 15px center;
+}
+
+
+.reveal .slide-logo {
+  max-height: 3.0rem !important;
+  bottom: -2px;
+  right: 10px;
+}
