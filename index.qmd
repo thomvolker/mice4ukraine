@@ -1,15 +1,78 @@
 ---
-title: "A practical introduction to multiple imputation with `mice`"
+title: "Multiple imputation of missing data with `mice`"
 subtitle: "Department of Methodology and Statistics, Utrecht University"
 author:
-  - name: "Thom B. Volker"
+  - name: "Thom Benjamin Volker"
 format:
   revealjs:
     theme: theme.scss
+    highlight-style: ayu-mirage
     logo: "https://github.com/thomvolker/slides-theme/blob/main/universiteit-utrecht-logo.png?raw=true"
     incremental: false
+    slide-number: true
+    df-print: kable
 #bibliography: pred_int.bib
 ---
+
+```{r setup}
+library(mice)
+library(ggmice)
+library(ggplot2)
+library(knitr)
+library(xtable)
+library(patchwork)
+
+dat <- readRDS("income_2022_incomplete.rds")
+
+knitr::opts_chunk$set(
+  fig.bg = "transparent",
+  dev.args = list(bg = "transparent")
+)
+
+ggplot <- function(...) {
+  ggplot2::ggplot(...) +
+  theme_classic() +
+  theme(
+    panel.background = element_rect(fill = "#fffbf2"),
+    plot.background = element_rect(fill = "#fffbf2"),
+    legend.box.background = element_rect(fill="#fffbf2", color=NA),
+    legend.background = element_rect(fill="#fffbf2", color=NA)
+  )
+}
+
+ggmice <- function(...) {
+  ggmice::ggmice(...) +
+  theme(
+    panel.background = element_rect(fill = "#fffbf2"),
+    plot.background = element_rect(fill = "#fffbf2"),
+    legend.box.background = element_rect(fill="#fffbf2", color=NA),
+    legend.background = element_rect(fill="#fffbf2", color=NA)
+  )
+}
+
+plot_pattern <- function(...) {
+  ggmice::plot_pattern(...) +
+  theme(
+    panel.background = element_rect(fill = "#fffbf2"),
+    plot.background = element_rect(fill = "#fffbf2"),
+    legend.box.background = element_rect(fill="#fffbf2", color=NA),
+    legend.background = element_rect(fill="#fffbf2", color=NA)
+  )
+}
+
+plot_corr <- function(...) {
+  ggmice::plot_corr(...) +
+  theme(
+    panel.background = element_rect(fill = "#fffbf2"),
+    plot.background = element_rect(fill = "#fffbf2"),
+    legend.box.background = element_rect(fill="#fffbf2", color=NA),
+    legend.background = element_rect(fill="#fffbf2", color=NA)
+  )
+}
+```
+
+
+
 
 ## About me
 
@@ -43,10 +106,21 @@ __Research interests__: methods to enhance _data privacy_, _synthetic data_ and 
 
 4. Correct inferences with missing data
 
-__Materials:__
+# Materials
 
-- Course website: [](https://thomvolker.github.io/mice4ukraine)
-- GitHub with files: [](https://github.com/thomvolker/mice4ukraine)
+Course website: [https://thomvolker.github.io/mice4ukraine](https://thomvolker.github.io/mice4ukraine)
+
+<br>
+
+GitHub with files: [https://github.com/thomvolker/mice4ukraine](https://github.com/thomvolker/mice4ukraine)
+
+# Questions?
+
+:::{.emph}
+Feel free to interrupt me, raise hand, etc.
+:::
+
+For later, email me [t.b.volker@uu.nl](mailto:t.b.volker@uu.nl)
 
 ## Take-aways
 
@@ -55,3 +129,760 @@ __Materials:__
 2. Missing data means missing information, this adds uncertainty to your inferences
 
 3. There is (typically) no quick fix, but we can come quite far
+
+# Missing data
+
+:::{.emph}
+Values that are not observed, but that are observable in principle
+:::
+
+## Data analysis is all about missing data
+
+
+::: {.columns}
+:::: {.column width="40%"}
+
+:::::{.fragment .semi-fade-out}
+
+- Sampling
+
+- Omitted variables
+
+:::::
+
+- Non-response
+
+::::
+
+:::: {.column width="60%"}
+
+![](missing_data.png)
+
+::::
+
+:::
+
+
+# Item non-response
+
+::: {.emph}
+Some, but not all, responses missing for a case
+:::
+
+## Item non-response
+
+```{r}
+data.frame(
+  ID = c(1,2,3,4),
+  X1 = c(3.2, 1.88, NA, 2),
+  X2 = c("B", "B", NA, "A"),
+  X3 = c(739, NA, 2104, NA)
+)
+```
+
+# Missing data put us at risk
+
+:::{.emph}
+So when, and how, to deal with them?
+:::
+
+## Prevention
+
+> Obviously, the best way to treat missing data is not to have them (Orchard & Woodbury, 1972)
+
+- Design: Short time intervals, few variables, test quality with pilot
+
+- Collection: Incentives, match mode to participant, quick follow-up
+
+- Measures: Minimize intrusive measures, supportive UX design
+
+## Prevention
+
+<br>
+<br>
+<br>
+
+- DO NOT MAKE QUESTIONS MANDATORY
+
+# Even a perfectly designed questionnaire will often have missing data
+
+## A taxonomy of missing data mechanisms
+
+- __MCAR__: Missing completely at random
+
+- __MAR__: Missing at random
+
+- __MNAR__ or __NMAR__: Missing not at random
+
+## Missing completely at random
+
+Probability of missingness is independent (of observed and unobserved data)
+
+- Measurement instrument fails ocassionally
+
+- Internet connection fails
+
+- People accidentally skip
+
+## Missing completely at random
+
+```{r, dev="png", dev.args=list(bg="transparent")}
+ggplot(dat, aes(x = age, y = income, color = ind_mcar, shape = ind_mcar)) +
+  geom_point(alpha = 0.5, size = 1, stroke = 1) +
+  scale_color_manual(values = c("missing" = mice::mdc(2), "observed" = mice::mdc(1))) +
+  scale_shape_manual(values = c("missing" = 4, "observed" = 1)) +
+  labs(y = "Income", x = "Age", color = "", shape = "")
+```
+
+## Missing at random
+
+Probability to be missing depends on known data (but not unknown data)
+
+- People who work in certain branches may be less likely to report their income
+
+- Biological measurements may be missing for younger children
+
+- Based on certain characteristics of a product a quality control may become more or less likely
+
+## Missing at random
+
+```{r, dev="png", dev.args=list(bg="transparent")}
+ggplot(dat, aes(x = age, y = income, color = ind_mar, shape = ind_mar)) +
+  geom_point(alpha = 0.5, size = 1, stroke = 1) +
+  scale_color_manual(values = c("missing" = mice::mdc(2), "observed" = mice::mdc(1))) +
+  scale_shape_manual(values = c("missing" = 4, "observed" = 1)) +
+  labs(y = "Income", x = "Age", color = "", shape = "")
+```
+
+## Missing not at random
+
+Probability to be missing depends on unknown data (the missing values themselves, or unobserved variables)
+
+- People with higher income may be less likely to fill in their income
+
+- People with certain political attitudes may be less likely to be open about these
+
+- Deliveries from certain locations are less likely to arrive
+
+## Missing not at random
+
+```{r, dev="png", dev.args=list(bg="transparent")}
+ggplot(dat, aes(x = age, y = income, color = ind_mnar, shape = ind_mnar)) +
+  geom_point(alpha = 0.5, size = 1, stroke = 1) +
+  scale_color_manual(values = c("missing" = mice::mdc(2), "observed" = mice::mdc(1))) +
+  scale_shape_manual(values = c("missing" = 4, "observed" = 1)) +
+  labs(y = "Income", x = "Age", color = "", shape = "")
+```
+
+
+# 
+
+:::{.emph}
+__When should, and can, we solve the missing data problems?__
+:::
+
+## Planned missingness
+
+Some data should be missing
+
+- `if (x) continue; else skip`
+
+- Survival data
+
+# Otherwise... 
+
+we typically want to solve missing data problems. 
+
+::: {.fragment}
+When can we?
+:::
+
+## Missing data mechanisms
+
+Under __MCAR__ and __MAR__, we can typically solve the missing data problem
+
+Under __MNAR__, we typically require additional assumptions and more sophisticated models
+
+- We cannot tell the missingness mechanism from the data
+
+- Working hypothesis: __MAR__ (if unrealistic →  sensitivity analysis)
+
+# Inspecting the missingness with `ggmice`
+
+## `boys data` {.scrollable}
+
+- `age`: Decimal age
+- `hgt`: Height (in cm)
+- `wgt`: Weight (kg)
+- `bmi`: Body mass index
+- `hc`: Head circumference (in cm)
+- `gen`: Genital Tanner stage
+- `phb`: Pubic hair (Tanner P1-P6)
+- `tv`: Testicular volume (ml)
+- `reg`: Region (north, east, west, south, city)
+
+## Missing data pattern
+
+```{r}
+#| label: md-pattern
+#| echo: true
+
+plot_pattern(boys) 
+```
+
+## Plot correlation matrix
+
+```{r}
+#| label: plot-corr
+#| echo: true
+
+plot_corr(boys)
+```
+
+## Plot relations between variables (1)
+
+```{r}
+#| label: plot-hgt-wgt
+#| echo: true
+
+ggmice(boys, aes(x = hgt, y = wgt)) +
+  geom_point()
+```
+
+## Plot relations between variables (2)
+
+```{r}
+#| label: plot-hgt-tv
+#| echo: true
+
+ggmice(boys, aes(x = hgt, y = tv)) +
+  geom_point()
+```
+
+## Plot relations between variables (3)
+
+```{r}
+#| label: plot-gen-tv
+#| echo: true
+
+ggmice(boys, aes(x = gen, y = tv)) +
+  geom_jitter(width = 0.2)
+```
+
+# Solving missing data problems
+
+## Strategy 1
+
+Ignoring missing data: listwise deletion
+
+- Loss of information
+
+- Often biased if the data is not __MCAR__
+
+Regression weights can be estimated without bias when:
+
+- Missings in $Y$ only
+
+- Missingness does not depend on $Y$
+
+## Strategy 2
+
+Treating missing data
+
+:::: {.fragment .semi-fade-out}
+
+- Ad hoc methods (typically invalid)
+
+- Weighting
+
+- Likelihood-based methods
+::::
+
+- Multiple imputation
+
+# Multiple imputation (Rubin 1987)^[[Rubin, D. B. (1987). Multiple imputation for nonresponse in surveys](https://onlinelibrary.wiley.com/doi/book/10.1002/9780470316696)]
+
+::: {.emph}
+What is it and how can you use it?
+:::
+
+<br>
+<br>
+
+## Multiple imputation
+
+Missing values can be 'imputed' (i.e., guessed)
+
+- A single imputation can never be correct in general
+
+- We can impute each missing value $m$ times
+
+- Each time taking imputation uncertainty into account
+
+- Variation between the $m$ imputed values reflects our uncertainty about the unknown value
+
+## Multiple imputation workflow
+
+![](flow.png)
+
+## Assumptions
+
+Missing at random is approximately correct
+
+Imputation model is congenial with analysis model
+
+## Congeniality
+
+:::{.emph}
+Imputation model and analysis model are compatible with some larger model.
+:::
+
+::: {.fragment}
+Examples:
+
+- Interactions in the analysis model should be in the imputation model
+
+- Transformations in the analysis model should be in the imputation model
+
+:::
+
+## Disadvantages
+
+Working with multiple datasets can be cumbersome
+
+Relatively inefficient for small $m$
+
+## Advantages
+
+Correct point and variance estimates
+
+Splits missing data from the complete-data analysis
+
+Theoretical properties are well established
+
+Flexible, widely applicable
+
+## Multiple imputation example
+
+```{r}
+set.seed(123)
+subset <- na.omit(boys[,1:2])[sample(500, 100),]
+ggmice(subset, aes(x = age, y = hgt)) +
+  geom_point()
+```
+
+## One missing case
+
+```{r}
+ggmice(subset, aes(x = age, y = hgt)) +
+  geom_point() +
+  geom_point(data = subset[7, ], shape = 4, col = mdc(2), size = 3)
+```
+
+## Conditional mean imputation
+
+```{r}
+#| label: cmi
+#| echo: true
+#| eval: false
+
+mice(boys, method = "norm.predict")
+```
+
+```{r}
+subset[7,2] <- NA
+fit <- lm(hgt ~ age, subset)
+imp <- mice(subset, method = "norm.predict", m = 1, maxit = 1, print = FALSE)
+
+ggmice(imp, aes(x = age, y = hgt)) +
+  geom_point() +
+  geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2], col = mdc(1))
+```
+
+## Stochastic regression imputation (SRI)
+
+```{r}
+#| label: sri
+#| echo: true
+#| eval: false
+
+mice(boys, method = "norm.nob")
+```
+
+```{r}
+subset[7,2] <- NA
+fit <- lm(hgt ~ age, subset)
+imp <- mice(subset, method = "norm.nob", m = 5, maxit = 5, print = FALSE)
+
+ggmice(imp, aes(x = age, y = hgt)) +
+  geom_point() +
+  geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2], col = mdc(1))
+```
+
+## SRI with parameter uncertainty
+
+```{r}
+#| label: norm
+#| echo: true
+#| eval: false
+
+mice(boys, method = "norm")
+```
+
+```{r}
+subset[7,2] <- NA
+fit <- lm(hgt ~ age, subset)
+imp <- mice(subset, method = "norm", m = 5, maxit = 5, print = FALSE)
+
+ggmice(imp, aes(x = age, y = hgt)) +
+  geom_point() +
+  geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2], col = mdc(1))
+```
+
+## Predictive mean matching (PMM)
+
+```{r}
+#| label: pmm
+#| echo: true
+#| eval: false
+
+mice(boys, method = "pmm")
+```
+
+```{r}
+ggmice(subset, aes(x = age, y = hgt)) +
+  geom_point()
+```
+
+## PMM: Predict outcome
+
+```{r}
+xval <- subset[7,1]
+imp <- mice(subset, m = 5, maxit = 1, print = FALSE)
+a <- coef(fit)[1]
+b <- coef(fit)[2]
+
+yhat <- a + b*xval
+
+ggmice(subset, aes(x = age, y = hgt)) +
+  geom_point() +
+  geom_abline(intercept = a, slope = b, col = mdc(1)) +
+  geom_segment(
+    data = data.frame(
+      xstart = c(xval, xval - 0.2),
+      xend = c(xval, 0),
+      ystart = c(52, yhat),
+      yend = c(yhat - 1, yhat)
+    ),
+    aes(x = xstart, y = ystart, xend = xend, yend = yend, col = NULL),
+    arrow = arrow(),
+    col = mdc(1),
+    show.legend = FALSE
+  )
+```
+
+## PMM: Define matching range
+
+```{r}
+xdelta <- 0.69
+ylo <- a + b * (xval - xdelta)
+yhi <- a + b * (xval + xdelta)
+ydelta <- (yhi - ylo)/2
+xlon <- (ylo-a)/b
+xhin <- (yhi-a)/b
+
+ggmice(subset, aes(x = age, y = hgt)) +
+  geom_point() +
+  geom_abline(intercept = a, slope = b, col = mdc(1)) +
+  geom_abline(intercept = ylo, slope = 0, linetype = 2, col = mdc(1)) +
+  geom_abline(intercept = yhi, slope = 0, linetype = 2, col = mdc(1)) +
+  geom_segment(
+    mapping = aes(
+      x = xval - xdelta, 
+      xend = xval + xdelta,
+      y = ylo,
+      yend = yhi,
+      col = NULL
+      ),
+      col = mdc(1),
+      linewidth = 1.5
+  )
+
+```
+
+## PMM: Select potential donors
+
+```{r}
+donors <- subset(na.omit(subset), age > xval - xdelta & age < xval + xdelta)
+
+ggmice(subset, aes(x = age, y = hgt)) +
+  geom_point() +
+  geom_abline(intercept = a, slope = b, col = mdc(1)) +
+  geom_abline(intercept = ylo, slope = 0, linetype = 2, col = mdc(1)) +
+  geom_abline(intercept = yhi, slope = 0, linetype = 2, col = mdc(1)) +
+  geom_segment(
+    mapping = aes(
+      x = xval - xdelta, 
+      xend = xval + xdelta,
+      y = ylo,
+      yend = yhi,
+      col = NULL
+      ),
+      col = mdc(1),
+      linewidth = 1.5
+  ) +
+  geom_point(data = donors, mapping = aes(col = NULL), col = mdc(2), shape = 1, size = 3)
+```
+
+# The `mice` algorithm
+
+:::{.emph}
+__Multiple imputation by chained equations__
+
+What does `mice(data)` do?
+:::
+
+## Modelling the data {.smaller}
+
+Data are assumed to come from some unknown data-generating mechanism
+
+:::{.columns}
+::::{.column width="40%"}
+This mechanism determines:
+
+- Characteristics of each variable
+    + Mean, variance, etc.
+- Relationships between variables
+    + Correlations, non-linear relationship
+- Random noise
+    + Non-deterministic part - randomness
+
+::::
+::::{.column}
+:::::{.fragment}
+```{r}
+#| label: age-hgt
+#| fig-height: 11
+
+(ggmice(boys, aes(x = hgt)) +
+  geom_density(size = 1.5)) /
+(ggmice(boys, aes(x = age, y = hgt)) +
+  geom_point(size = 2)) &
+  theme(
+    text = element_text(size = 20),
+    panel.background = element_rect(fill = "#fffbf2"),
+    plot.background = element_rect(fill = "#fffbf2"),
+    legend.box.background = element_rect(fill="#fffbf2", color=NA),
+    legend.background = element_rect(fill="#fffbf2", color=NA)
+  )
+```
+:::::
+::::
+:::
+
+## Fully conditional specification {.smaller}
+
+If you have many ($> 2$) variables, estimating the distribution of the data is hard!
+
+Idea: break the distribution into a __chain__ of distributions, one per variable
+
+:::{.nonincremental}
+- Model each variable as a function of all other variables.
+- For age, height and weight, we model
+    + $\text{age} \sim f(\text{height}, \text{weight})$
+    + $\text{height} \sim f(\text{age}, \text{weight})$
+    + $\text{weight} \sim f(\text{age}, \text{height})$
+:::
+
+Instead of modelling the entire data distribution correctly:
+
+→ Simplify: model the distribution of one variable given the others correctly.
+
+## Advantages of chained models (1)
+
+Flexibility: We can use essentially any model we want
+
+- Continuous outcome: linear regression, non-linear regression, predictive mean matching, machine learning model
+- Count outcome: Poisson regression, predictive mean matching, machine learning model
+- Categorical outcome: Logistic regression, predictive mean matching, machine learning model
+
+## Advantages of chained models (2)
+
+Incorporating constraints
+
+- Two step procedures: `if (constraint) do [1] else do [2]`
+
+:::{.fragment}
+Interpretability: Model diagnostics
+
+- We can use standard procedures to check and finetune our imputation models
+:::
+
+# Let's try it out
+
+# Valid inferences with imputed data
+
+## Multiple imputation workflow
+
+![](flow.png)
+
+## Missing data introduces additional uncertainty
+
+<br>
+
+:::{.nonincremental}
+- We don't know (with certainty) what the unknown value should be
+
+- Pretending to know the unknown value underestimates uncertainty
+
+- But we have multiple imputed values!
+:::
+
+## Analyses with missing data {.smaller}
+
+:::{.nonincremental}
+- Usually, the goal is not to impute the data as accurately as possible
+
+- Instead, we want to do some interesting analysis
+
+- E.g., a $t$-test, linear or logistic regression
+:::
+
+- We have multiple data sets now, how to proceed?
+
+- Typical workflow: fit the model of interest to each imputed dataset: estimate parameter of interest and corresponding variance, and adjust for imputation uncertainty.
+
+## A $t$-test with missing data (visualized)
+
+```{r}
+imp <- mice(nhanes, print = FALSE)
+
+grouped <- complete(imp, "long") |>
+  dplyr::group_by(.imp, hyp) |>
+  dplyr::summarize(chl = mean(chl))
+
+ggmice(imp, aes(y = chl, x = hyp)) +
+  geom_point(position = position_jitter(0.05)) +
+  geom_point(data = grouped, aes(col = NULL), shape = 95, size = 11) +
+  geom_line(data = grouped, aes(col = NULL, group = .imp))
+```
+
+## Pooling parameter estimates
+
+Define $Q$, the quantity of interest (a population parameter).
+
+::: {.fragment}
+- In each imputed data, estimate $Q$ by $\hat{Q}_j$
+
+- Average over the imputed data sets: $\bar Q = \frac 1 m \sum_{j=1}^m \hat{Q}_j$.
+:::
+
+## The variance of $\bar Q$: three sources {.smaller}
+
+:::{.nonincremental}
+:::{.fragment .fade-in}
+:::{.fragment .semi-fade-out}
+- Sampling uncertainty (we do not observe the entire population)
+    + The usual variance that we would also have without missing data: $\bar U = \frac 1 m \sum_{j=1}^m \hat U_j$
+:::
+:::
+:::{.fragment .fade-in}
+:::{.fragment .semi-fade-out}
+- Missing data uncertainty (some information is unobserved)
+    + We can impute, but we are seldom certain of the true underlying value
+    + Between imputation uncertainty: $B = \frac{1}{m-1} \sum_{j=1}^m (\hat Q_j - \bar Q)^2$
+:::
+:::
+:::{.fragment .fade-in}
+:::{.fragment .semi-fade-out}
+- Imputation uncertainty (we approximate the missing values with a finite number of draws from the posterior distribution)
+    + More draws, the smaller our simulation error: $\frac B m$
+:::
+:::
+
+:::{.fragment .fade-in}
+- Total variance
+    + Add all components together: $T = \bar U + B + \frac B m$
+:::
+:::
+
+## Inferences from $\bar Q$ {.smaller}
+
+Now we have $\bar Q$ and its variance, we can make inferences
+
+:::{.nonincremental}
+- Significance testing (or Bayesian tests)
+:::
+
+Because the variance around $\bar Q$ is estimated from the data, inferences are based on a $t$-distribution, $H_0: Q = Q_0$ vs $H_1: Q \neq Q_0$.
+
+:::{.fragment}
+$p$-value: $P\Bigg(\frac{|\bar Q - Q_0|}{\sqrt{T}} > t_{(\nu, 1-\alpha/2)}\Bigg)$
+
+:::{.nonincremental}
+- $\nu$: degrees of freedom (given by software)
+:::
+:::
+
+:::{.fragment}
+$100(1-\alpha)\%$ confidence interval: $\bar Q \pm t_{(\nu, 1-\alpha/2)}\cdot \sqrt{T}$
+:::
+
+## How much information is contained in the missing data? {.smaller}
+
+Proportion of variance attributable to the missing data
+$$
+\lambda = \frac{B + B/m}{T}
+$$
+
+Relative increase in variance due to non-response
+$$
+r = \frac{B + B/m}{T}
+$$
+
+Note: $r = \lambda/(1-\lambda), \lambda = r/(r+1)$
+
+## MI analyses in `R`
+
+```{r}
+#| label: mi-inferences
+#| echo: true
+
+imp <- mice(boys, m = 3, print = FALSE)
+fits <- with(imp, lm(hc ~ age + hgt + wgt))
+fits
+```
+
+## Pooling inferences in `R` {.smaller}
+
+```{r}
+#| label: mi-pooling
+#| echo: true
+
+pooled <- pool(fits)
+pooled$pooled
+```
+
+## Pooled summary statistics {.smaller}
+
+```{r}
+#| label: mi-pooling-summary
+#| echo: true
+
+summary(pool(fits))
+```
+
+
+## More resources
+
+- [Little, R. J. A. & Rubin, D. B. (2019). Statistical analysis with missing data.](https://onlinelibrary.wiley.com/doi/book/10.1002/9781119482260)
+
+- [Van Buuren, S. (2018). Flexible imputation of missing data.](https://stefvanbuuren.name/fimd/)
+
+- [`mice` vignettes](https://amices.org/)
+
+- [`R-miss-tastic`](https://rmisstastic.netlify.app/)
+
+:::{.emph}
+[__Summer School: Solving missing data problems in `R`__](https://utrechtsummerschool.nl/courses/data-science/data-science-solving-missing-data-problems-in-r)
+:::
